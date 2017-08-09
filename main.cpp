@@ -6,8 +6,11 @@
 
 #include "main.h"
 
-int    Nx, Ny, Nz;
-int    NPX, NPY, NPZ;
+/* Global number of cells along each direction in Cartesian coordinate system */
+int    nx, ny, nz;
+/* Number of subdomains along each direction */
+int    nsd_x, nsd_y, nsd_z;
+/* Additional grid data on each MPI-process */
 info_t info;
 
 int main(int argc, char *argv[])
@@ -18,11 +21,12 @@ int main(int argc, char *argv[])
 	MPI_Comm_rank(MPI_COMM_WORLD, &(info.rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(info.nranks));
 	
-	NPX = 3;
-	NPY = 1;
-	NPZ = 1;
+	/* Set manually in program or through command line arguments */
+	nsd_x = 3;
+	nsd_y = 1;
+	nsd_z = 1;
 	
-	if (info.nranks != (NPX * NPY * NPZ))	
+	if (info.nranks != (nsd_x * nsd_y * nsd_z))	
 	{
 		if (info.rank == 0)
 			fprintf(stderr, "You should run this program on another number of processes.\n");
@@ -30,36 +34,40 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	
-	Nx = 50;
-	Ny = 50;
-	Nz = 50;
+	/* Set manually in program or through command line arguments */
+	nx = 50;
+	ny = 50;
+	nz = 50;
 	
-	double Xmin = 0.0;
-	double Xmax = 1.0;
-	double Ymin = 0.0;
-	double Ymax = 1.0;
-	double Zmin = 0.0;
-	double Zmax = 1.0;
+	/* Global domain boundaries */
+	double xMin = 0.0;
+	double xMax = 1.0;
+	double yMin = 0.0;
+	double yMax = 1.0;
+	double zMin = 0.0;
+	double zMax = 1.0;
 	
-	double Hx = (Xmax - Xmin) / Nx;
-	double Hy = (Ymax - Ymin) / Ny;
-	double Hz = (Zmax - Zmin) / Nz;
+	/* Spatial steps */
+	double hx = (xMax - xMin) / nx;
+	double hy = (yMax - yMin) / ny;
+	double hz = (zMax - zMin) / nz;
 	
-	info.rank_z =  info.rank / (NPX * NPY);
-	info.rank_y = (info.rank - NPX * NPY * info.rank_z) / NPX;
-	info.rank_x = (info.rank - NPX * info.rank_y - NPX * NPY * info.rank_z);
+	/* Store additional grid data on current MPI-process */
+	info.rank_z = (info.rank) / (nsd_x * nsd_y);
+	info.rank_y = (info.rank - nsd_x * nsd_y * info.rank_z) / nsd_x;
+	info.rank_x = (info.rank - nsd_x * info.rank_y - nsd_x * nsd_y * info.rank_z);
 	
-	info.ncells_x = (info.rank_x == (NPX - 1)) ? Nx - (Nx / NPX) * (NPX - 1) : Nx / NPX;
-	info.ncells_y = (info.rank_y == (NPY - 1)) ? Ny - (Ny / NPY) * (NPY - 1) : Ny / NPY;
-	info.ncells_z = (info.rank_z == (NPZ - 1)) ? Nz - (Nz / NPZ) * (NPZ - 1) : Nz / NPZ;
+	info.ncells_x = (info.rank_x == (nsd_x - 1)) ? nx - (nx / nsd_x) * (nsd_x - 1) : nx / nsd_x;
+	info.ncells_y = (info.rank_y == (nsd_y - 1)) ? ny - (ny / nsd_y) * (nsd_y - 1) : ny / nsd_y;
+	info.ncells_z = (info.rank_z == (nsd_z - 1)) ? nz - (nz / nsd_z) * (nsd_z - 1) : nz / nsd_z;
 	
-	info.offset_x = Nx / NPX * info.rank_x + 1;
-	info.offset_y = Ny / NPY * info.rank_y + 1;
-	info.offset_z = Nz / NPZ * info.rank_z + 1;
+	info.offset_x = nx / nsd_x * info.rank_x + 1;
+	info.offset_y = ny / nsd_y * info.rank_y + 1;
+	info.offset_z = nz / nsd_z * info.rank_z + 1;
 	
-	info.limit_x = (info.rank_x == (NPX - 1)) ? Nx : (info.rank_x + 1) * (Nx / NPX);
-	info.limit_y = (info.rank_y == (NPY - 1)) ? Ny : (info.rank_y + 1) * (Ny / NPY);
-	info.limit_z = (info.rank_z == (NPZ - 1)) ? Nz : (info.rank_z + 1) * (Nz / NPZ);
+	info.limit_x = (info.rank_x == (nsd_x - 1)) ? nx : (info.rank_x + 1) * (nx / nsd_x);
+	info.limit_y = (info.rank_y == (nsd_y - 1)) ? ny : (info.rank_y + 1) * (ny / nsd_y);
+	info.limit_z = (info.rank_z == (nsd_z - 1)) ? nz : (info.rank_z + 1) * (nz / nsd_z);
 	
 	info.npoints_x = info.ncells_x + 1;
 	info.npoints_y = info.ncells_y + 1;
@@ -67,9 +75,9 @@ int main(int argc, char *argv[])
 		
 	/* Allocate memory for mesh */
 	mesh_t mesh;
-	mesh.X = (double *)malloc(info.npoints_x * sizeof(double));
-	mesh.Y = (double *)malloc(info.npoints_y * sizeof(double));
-	mesh.Z = (double *)malloc(info.npoints_z * sizeof(double));	
+	mesh.x = (double *)malloc(info.npoints_x * sizeof(double));
+	mesh.y = (double *)malloc(info.npoints_y * sizeof(double));
+	mesh.z = (double *)malloc(info.npoints_z * sizeof(double));	
 	
 	/* Allocate memory for data */
 	state_t flowState;
@@ -78,17 +86,17 @@ int main(int argc, char *argv[])
 	/* Initialize mesh and data */
 	for (i = 0; i < info.npoints_x; i++)
 	{
-		mesh.X[i] = Xmin + (i + info.offset_x - 1) * Hx;
+		mesh.x[i] = xMin + (i + info.offset_x - 1) * hx;
 	}
 	
 	for (j = 0; j < info.npoints_y; j++)
 	{
-		mesh.Y[j] = Ymin + (j + info.offset_y - 1) * Hy;
+		mesh.y[j] = yMin + (j + info.offset_y - 1) * hy;
 	}
 	
 	for (k = 0; k < info.npoints_z; k++)
 	{
-		mesh.Z[k] = Zmin + (k + info.offset_z - 1) * Hz;
+		mesh.z[k] = zMin + (k + info.offset_z - 1) * hz;
 	}
 	
 	for (k = 0; k < info.ncells_z; k++)
@@ -103,15 +111,16 @@ int main(int argc, char *argv[])
 		}
 	}
 	
+	/* Save ParaView files collection in parallel */
 	write_pv_files_collection(mesh, flowState);
 	
 	if (info.rank == 0)
 		fprintf(stdout, "All was done!\n");
 	
 	/* Release alloacated memory */
-	free(mesh.X);
-	free(mesh.Y);
-	free(mesh.Z);
+	free(mesh.x);
+	free(mesh.y);
+	free(mesh.z);
 	free(flowState.data);
 	
 	MPI_Finalize();

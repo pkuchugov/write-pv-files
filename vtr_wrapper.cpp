@@ -28,21 +28,21 @@ void write_vtr_ascii_file(mesh_t mesh, state_t state)
 	fprintf(vtr, "       <DataArray type=\"Float64\" Name=\"X\" NumberOfComponents=\"1\" format=\"ascii\">\n");
 	for (i = 0; i < info.npoints_x; i++)
 	{
-		fprintf(vtr, "         %E\n", *(mesh.X+i));
+		fprintf(vtr, "         %E\n", *(mesh.x + i));
 	}
 	fprintf(vtr, "       </DataArray>\n");
 	
 	fprintf(vtr, "       <DataArray type=\"Float64\" Name=\"Y\" NumberOfComponents=\"1\" format=\"ascii\">\n");
 	for (j = 0; j < info.npoints_y; j++)
 	{
-		fprintf(vtr, "         %E\n", *(mesh.Y+j));
+		fprintf(vtr, "         %E\n", *(mesh.y + j));
 	}
 	fprintf(vtr, "       </DataArray>\n");
 	
 	fprintf(vtr, "       <DataArray type=\"Float64\" Name=\"Z\" NumberOfComponents=\"1\" format=\"ascii\">\n");
 	for (k = 0; k < info.npoints_z; k++)
 	{
-		fprintf(vtr, "         %E\n", *(mesh.Z+k));
+		fprintf(vtr, "         %E\n", *(mesh.z + k));
 	}
 	fprintf(vtr, "       </DataArray>\n");
 	
@@ -125,21 +125,21 @@ void write_vtr_binary_file(mesh_t mesh, state_t state)
 	fwrite(&offset, sizeof(int), 1, vtr);
 	for (i = 0; i < info.npoints_x; i++)
 	{
-		fwrite(mesh.X+i, sizeof(double), 1, vtr);
+		fwrite(mesh.x + i, sizeof(double), 1, vtr);
 	}
 	
 	offset = info.npoints_y * sizeof(double);
 	fwrite(&offset, sizeof(int), 1, vtr);
 	for (j = 0; j < info.npoints_y; j++)
 	{
-		fwrite(mesh.Y+j, sizeof(double), 1, vtr);
+		fwrite(mesh.y + j, sizeof(double), 1, vtr);
 	}
 	
 	offset = info.npoints_z * sizeof(double);
 	fwrite(&offset, sizeof(int), 1, vtr);
 	for (k = 0; k < info.npoints_z; k++)
 	{
-		fwrite(mesh.Z+k, sizeof(double), 1, vtr);
+		fwrite(mesh.z + k, sizeof(double), 1, vtr);
 	}
 	
 	offset = info.ncells_x * info.ncells_y * info.ncells_z * sizeof(double);
@@ -240,7 +240,7 @@ void write_vtr_binary_compressed_file(mesh_t mesh, state_t state)
 	srcLen = info.npoints_x * sizeof(double);
 	dstLen = getMaxCompressedLen( srcLen );
 	dst    = (char *)malloc(dstLen);
-	compresedSize = compressData((void *)mesh.X, srcLen, (void *)dst, dstLen);
+	compresedSize = compressData((void *)mesh.x, srcLen, (void *)dst, dstLen);
 	
 	headers[1] = srcLen;
 	headers[3] = compresedSize;
@@ -256,7 +256,7 @@ void write_vtr_binary_compressed_file(mesh_t mesh, state_t state)
 	srcLen = info.npoints_y * sizeof(double);
 	dstLen = getMaxCompressedLen( srcLen );
 	dst    = (char *)malloc(dstLen);
-	compresedSize = compressData((void *)mesh.Y, srcLen, (void *)dst, dstLen);
+	compresedSize = compressData((void *)mesh.y, srcLen, (void *)dst, dstLen);
 	
 	headers[1] = srcLen;
 	headers[3] = compresedSize;
@@ -272,7 +272,7 @@ void write_vtr_binary_compressed_file(mesh_t mesh, state_t state)
 	srcLen = info.npoints_z * sizeof(double);
 	dstLen = getMaxCompressedLen( srcLen );
 	dst    = (char *)malloc(dstLen);
-	compresedSize = compressData((void *)mesh.Z, srcLen, (void *)dst, dstLen);
+	compresedSize = compressData((void *)mesh.z, srcLen, (void *)dst, dstLen);
 	
 	headers[1] = srcLen;
 	headers[3] = compresedSize;
@@ -355,7 +355,7 @@ void write_pvtr_file()
 	
 	fprintf(pvtr, "<?xml version=\"1.0\"?>\n");
 	fprintf(pvtr, "<VTKFile type=\"PRectilinearGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
-	fprintf(pvtr, " <PRectilinearGrid WholeExtent= \"%d %d %d %d %d %d\" GhostLevel=\"0\">\n", 0, Nx, 0, Ny, 0, Nz);
+	fprintf(pvtr, " <PRectilinearGrid WholeExtent= \"%d %d %d %d %d %d\" GhostLevel=\"0\">\n", 0, nx, 0, ny, 0, nz);
 	fprintf(pvtr, "   <PCoordinates>\n");
 	fprintf(pvtr, "      <PDataArray type=\"Float64\" Name=\"X\" NumberOfComponents=\"1\" format=\"appended\"/>\n");
 	fprintf(pvtr, "      <PDataArray type=\"Float64\" Name=\"Y\" NumberOfComponents=\"1\" format=\"appended\"/>\n");
@@ -370,17 +370,17 @@ void write_pvtr_file()
 	
 	for (p = 0; p < info.nranks; p++)
 	{
-		info1.rank_z =  p / (NPX * NPY);
-		info1.rank_y = (p - NPX * NPY * info1.rank_z) / NPX;
-		info1.rank_x = (p - NPX * info1.rank_y - NPX * NPY * info1.rank_z);
+		info1.rank_z = (p) / (nsd_x * nsd_y);
+		info1.rank_y = (p - nsd_x * nsd_y * info1.rank_z) / nsd_x;
+		info1.rank_x = (p - nsd_x * info1.rank_y - nsd_x * nsd_y * info1.rank_z);
 		
-		info1.offset_x = Nx / NPX * info1.rank_x + 1;
-		info1.offset_y = Ny / NPY * info1.rank_y + 1;
-		info1.offset_z = Nz / NPZ * info1.rank_z + 1;
+		info1.offset_x = nx / nsd_x * info1.rank_x + 1;
+		info1.offset_y = ny / nsd_y * info1.rank_y + 1;
+		info1.offset_z = nz / nsd_z * info1.rank_z + 1;
 		
-		info1.limit_x = (info1.rank_x == (NPX - 1)) ? Nx : (info1.rank_x + 1) * (Nx / NPX);
-		info1.limit_y = (info1.rank_y == (NPY - 1)) ? Ny : (info1.rank_y + 1) * (Ny / NPY);
-		info1.limit_z = (info1.rank_z == (NPZ - 1)) ? Nz : (info1.rank_z + 1) * (Nz / NPZ);
+		info1.limit_x = (info1.rank_x == (nsd_x - 1)) ? nx : (info1.rank_x + 1) * (nx / nsd_x);
+		info1.limit_y = (info1.rank_y == (nsd_y - 1)) ? ny : (info1.rank_y + 1) * (ny / nsd_y);
+		info1.limit_z = (info1.rank_z == (nsd_z - 1)) ? nz : (info1.rank_z + 1) * (nz / nsd_z);
 		
 		fprintf(pvtr, "   <Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s_%d.vtr\"/>\n", info1.offset_x-1, info1.limit_x, 
 												 info1.offset_y-1, info1.limit_y, 

@@ -12,9 +12,9 @@
 	
 	typedef struct
 	{
-		double *X;
-		double *Y;
-		double *Z;
+		double *x;
+		double *y;
+		double *z;
 	} mesh_t;
 	
 	typedef struct
@@ -43,8 +43,8 @@
 		int limit_z;
 	} info_t;
 
-	extern int    Nx, Ny, Nz;
-	extern int    NPX, NPY, NPZ;
+	extern int    nx, ny, nz;
+	extern int    nsd_x, nsd_y, nsd_z;
 	extern info_t info;
 	
 	extern int  compressData(const void *src, int srcLen, void *dst, int dstLen);
